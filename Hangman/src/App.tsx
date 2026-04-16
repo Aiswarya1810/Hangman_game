@@ -16,6 +16,8 @@ function getWord() {
 function App() {
   const [{ word, category }, setGameWord] = useState(getWord)
   const [guessedLetters, setGuessedLetters] = useState<string[]>([])
+  const [playerName, setPlayerName] = useState("")
+  const [isStarted, setIsStarted] = useState(false)
 
   const incorrectLetters = guessedLetters.filter(letter => !word.includes(letter))
 
@@ -31,6 +33,8 @@ function App() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (!isStarted) return
+
       const key = e.key.toLowerCase()
 
       if (!key.match(/^[a-z]$/)) return
@@ -42,10 +46,11 @@ function App() {
     return () => {
       document.removeEventListener("keydown", handler)
     }
-  }, [addGuessedLetter])
+  }, [addGuessedLetter, isStarted])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (!isStarted) return
       if (e.key !== "Enter") return
 
       e.preventDefault()
@@ -57,7 +62,98 @@ function App() {
     return () => {
       document.removeEventListener("keydown", handler)
     }
-  }, [])
+  }, [isStarted])
+
+if (!isStarted) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: "2rem",
+        backgroundColor: "#0f172a",
+        color: "#e2e8f0",
+        padding: "2rem",
+        animation: "fadeIn 0.8s ease",
+      }}
+    >
+      <style>
+        {`
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+              transform: translateY(30px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}
+      </style>
+
+      <h1
+        style={{
+          fontSize: "4rem",
+          marginBottom: "1rem",
+          textAlign: "center",
+          color:"#8f6fc8",
+        }}
+      >
+        🎮 Hangman Game
+      </h1>
+
+      <input
+        type="text"
+        placeholder="Enter your name"
+        value={playerName}
+        onChange={(e) => setPlayerName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && playerName.trim() !== "") {
+            setIsStarted(true)
+          }
+        }}
+        style={{
+          padding: "1rem 1.2rem",
+          borderRadius: "14px",
+          border: "2px solid #7c3aed",
+          outline: "none",
+          fontSize: "1.2rem",
+          width: "380px",
+          backgroundColor: "#1e293b",
+          color: "#e2e8f0",
+          boxShadow: "0 0 15px rgba(124, 58, 237, 0.25)",
+          transition: "0.3s ease",
+        }}
+      />
+
+      <button
+        onClick={() => {
+          if (playerName.trim() !== "") {
+            setIsStarted(true)
+          }
+        }}
+        style={{
+          padding: "0.9rem 1.8rem",
+          fontSize: "1.1rem",
+          cursor: "pointer",
+          borderRadius: "12px",
+          border: "none",
+          backgroundColor: "#7c3aed",
+          color: "white",
+          fontWeight: "bold",
+          boxShadow: "0 6px 18px rgba(124, 58, 237, 0.35)",
+          transition: "0.3s ease",
+        }}
+      >
+        Start Game
+      </button>
+    </div>
+  )
+}
 
   return (
     <div
@@ -106,7 +202,7 @@ function App() {
 
             <p style={{ marginTop: "10px" }}>
               {isWinner
-                ? "Great job! You guessed it!"
+                ? `Great job, ${playerName}! You guessed it!`
                 : `The word was "${word}"`}
             </p>
 
@@ -132,6 +228,10 @@ function App() {
           </div>
         </div>
       )}
+
+      <div style={{ fontSize: "1.2rem", fontWeight: "bold" }}>
+        Player: {playerName}
+      </div>
 
       <div style={{ fontSize: "1.6rem", fontWeight: "bold" }}>
         Clue: {category}
