@@ -18,7 +18,12 @@
 }
 
 .btn.inactive{
-    opacity: 3;
+    opacity: 0.3;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 .btn:hover:not(:disabled),
 
