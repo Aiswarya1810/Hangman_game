@@ -83,12 +83,54 @@ return()=> {
 
 
 }} >
-    <div style={{ fontSize: "2rem",textAlign:"center"}}>
-      
-      {isWinner && "Winner! - Refresh to try again"}
-      {isLoser && "Nice Try - Refresh to try again"}
-
+    {(isWinner || isLoser) && (
+  <div
+    style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      backgroundColor: "rgba(0,0,0,0.5)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 1000,
+    }}
+  >
+    <div
+      style={{
+        background: "white",
+        padding: "2rem",
+        borderRadius: "10px",
+        textAlign: "center",
+        minWidth: "300px",
+        boxShadow: "0 4px 10px rgba(0,0,0,0.25)",
+      }}
+    >
+      <h2>{isWinner ? "You Won!" : "Nice Try!"}</h2>
+      <p>
+        {isWinner
+          ? "Congratulations! You guessed the word."
+          : `The word was "${word}".`}
+      </p>
+      <button
+        onClick={() => {
+          setGameWord(getWord())
+          setGuessedLetters([])
+        }}
+        style={{
+          marginTop: "1rem",
+          padding: "0.7rem 1.2rem",
+          fontSize: "1rem",
+          cursor: "pointer",
+        }}
+      >
+        Play Again
+      </button>
     </div>
+  </div>
+)}
 
     <div style={{ fontSize: "1.5rem", textAlign: "center" }}>
       Clue : {category}
