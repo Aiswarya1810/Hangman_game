@@ -223,7 +223,6 @@ function App() {
   return (
     <div
       style={{
-        maxWidth: "800px",
         width: "100%",
         display: "flex",
         flexDirection: "column",
@@ -312,6 +311,7 @@ function App() {
                             <button
                                 onClick={() => {
                                     setIsStarted(false)
+                                    setPlayerName("") 
                                     setGuessedLetters([])
                                     setTimeLeft(60)
                                     previousCorrectCount.current = 0
