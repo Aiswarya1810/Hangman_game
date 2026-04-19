@@ -3,7 +3,7 @@ import words from "./wordList.json"
 import { HangmanDrawing } from "./HangmanDrawing"
 import { HangmanWord } from "./HangmanWord"
 import { Keyboard } from "./Keyboard"
-import '../App.css';
+import "../App.css"
 
 function getWord() {
   const categories = Object.keys(words) as Array<keyof typeof words>
@@ -14,6 +14,11 @@ function getWord() {
   return { word, category }
 }
 
+type LeaderboardEntry = {
+  name: string
+  score: number
+}
+
 function App() {
   const [{ word, category }, setGameWord] = useState(getWord)
   const [guessedLetters, setGuessedLetters] = useState<string[]>([])
@@ -21,24 +26,56 @@ function App() {
   const [isStarted, setIsStarted] = useState(false)
   const [score, setScore] = useState(0)
   const [timeLeft, setTimeLeft] = useState(60)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
 
   const previousCorrectCount = useRef(0)
   const previousIncorrectCount = useRef(0)
   const winBonusAdded = useRef(false)
+  const scoreSaved = useRef(false)
 
   const incorrectLetters = guessedLetters.filter(letter => !word.includes(letter))
   const correctLetters = guessedLetters.filter(letter => word.includes(letter))
 
   const isTimeUp = timeLeft <= 0
   const isLoser = incorrectLetters.length >= 6 || isTimeUp
-  const isWinner = word.split("").every(letter =>
-    guessedLetters.includes(letter)
-  )
+  const isWinner = word.split("").every(letter => guessedLetters.includes(letter))
 
   const addGuessedLetter = useCallback((letter: string) => {
     if (guessedLetters.includes(letter) || isWinner || isLoser) return
     setGuessedLetters(current => [...current, letter])
   }, [guessedLetters, isWinner, isLoser])
+
+  const resetGameValues = () => {
+    setGameWord(getWord())
+    setGuessedLetters([])
+    setTimeLeft(60)
+    previousCorrectCount.current = 0
+    previousIncorrectCount.current = 0
+    winBonusAdded.current = false
+    scoreSaved.current = false
+  }
+
+  const saveScoreToLeaderboard = useCallback(() => {
+    if (!playerName.trim() || scoreSaved.current) return
+
+    const existingScores: LeaderboardEntry[] = JSON.parse(
+      localStorage.getItem("hangmanLeaderboard") || "[]"
+    )
+
+    const updatedScores = [...existingScores, { name: playerName, score }]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+
+    localStorage.setItem("hangmanLeaderboard", JSON.stringify(updatedScores))
+    setLeaderboard(updatedScores)
+    scoreSaved.current = true
+  }, [playerName, score])
+
+  useEffect(() => {
+    const savedScores = JSON.parse(localStorage.getItem("hangmanLeaderboard") || "[]")
+    setLeaderboard(savedScores)
+  }, [])
 
   useEffect(() => {
     if (!isStarted || isWinner || isLoser) return
@@ -82,6 +119,12 @@ function App() {
   }, [isWinner])
 
   useEffect(() => {
+    if ((isWinner || isLoser) && !scoreSaved.current) {
+      saveScoreToLeaderboard()
+    }
+  }, [isWinner, isLoser, saveScoreToLeaderboard])
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!isStarted) return
 
@@ -105,12 +148,7 @@ function App() {
       if (!isWinner && !isLoser) return
 
       e.preventDefault()
-      setGameWord(getWord())
-      setGuessedLetters([])
-      setTimeLeft(60)
-      previousCorrectCount.current = 0
-      previousIncorrectCount.current = 0
-      winBonusAdded.current = false
+      resetGameValues()
     }
 
     document.addEventListener("keydown", handler)
@@ -170,10 +208,7 @@ function App() {
             if (e.key === "Enter" && playerName.trim() !== "") {
               setIsStarted(true)
               setScore(0)
-              setTimeLeft(60)
-              previousCorrectCount.current = 0
-              previousIncorrectCount.current = 0
-              winBonusAdded.current = false
+              resetGameValues()
             }
           }}
           style={{
@@ -183,6 +218,7 @@ function App() {
             outline: "none",
             fontSize: "1.2rem",
             width: "380px",
+            maxWidth: "90%",
             backgroundColor: "#1e293b",
             color: "#e2e8f0",
             boxShadow: "0 0 15px rgba(124, 58, 237, 0.25)",
@@ -190,32 +226,130 @@ function App() {
           }}
         />
 
-        <button
-          onClick={() => {
-            if (playerName.trim() !== "") {
-              setIsStarted(true)
-              setScore(0)
-              setTimeLeft(60)
-              previousCorrectCount.current = 0
-              previousIncorrectCount.current = 0
-              winBonusAdded.current = false
-            }
-          }}
+        <div
           style={{
-            padding: "0.9rem 1.8rem",
-            fontSize: "1.1rem",
-            cursor: "pointer",
-            borderRadius: "12px",
-            border: "none",
-            backgroundColor: "#7c3aed",
-            color: "white",
-            fontWeight: "bold",
-            boxShadow: "0 6px 18px rgba(124, 58, 237, 0.35)",
-            transition: "0.3s ease",
+            display: "flex",
+            gap: "16px",
+            flexWrap: "wrap",
+            justifyContent: "center",
           }}
         >
-          Start Game
-        </button>
+          <button
+            onClick={() => {
+              if (playerName.trim() !== "") {
+                setIsStarted(true)
+                setScore(0)
+                resetGameValues()
+              }
+            }}
+            style={{
+              padding: "0.9rem 1.8rem",
+              fontSize: "1.1rem",
+              cursor: "pointer",
+              borderRadius: "12px",
+              border: "none",
+              backgroundColor: "#7c3aed",
+              color: "white",
+              fontWeight: "bold",
+              boxShadow: "0 6px 18px rgba(124, 58, 237, 0.35)",
+              transition: "0.3s ease",
+            }}
+          >
+            Start Game
+          </button>
+
+          <button
+            onClick={() => setShowLeaderboard(true)}
+            style={{
+              padding: "0.9rem 1.8rem",
+              fontSize: "1.1rem",
+              cursor: "pointer",
+              borderRadius: "12px",
+              border: "none",
+              backgroundColor: "#334155",
+              color: "white",
+              fontWeight: "bold",
+            }}
+          >
+            Leaderboard
+          </button>
+        </div>
+
+        {showLeaderboard && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              backgroundColor: "rgba(0,0,0,0.65)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 2000,
+            }}
+          >
+            <div
+              style={{
+                background: "#1e293b",
+                color: "#e2e8f0",
+                padding: "2rem",
+                borderRadius: "14px",
+                width: "90%",
+                maxWidth: "420px",
+                border: "2px solid #7c3aed",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+              }}
+            >
+              <h2 style={{ marginBottom: "1rem", color: "#8f6fc8", textAlign: "center" }}>
+                🏆 Leaderboard
+              </h2>
+
+              {leaderboard.length === 0 ? (
+                <p style={{ textAlign: "center" }}>No scores yet</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {leaderboard.map((entry, index) => (
+                    <div
+                      key={`${entry.name}-${entry.score}-${index}`}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        backgroundColor: "#0f172a",
+                        padding: "0.8rem 1rem",
+                        borderRadius: "10px",
+                      }}
+                    >
+                      <span>
+                        {index + 1}. {entry.name}
+                      </span>
+                      <span style={{ fontWeight: "bold", color: "#22c55e" }}>
+                        {entry.score}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ marginTop: "1.5rem", textAlign: "center" }}>
+                <button
+                  onClick={() => setShowLeaderboard(false)}
+                  style={{
+                    padding: "0.7rem 1.2rem",
+                    fontSize: "1rem",
+                    cursor: "pointer",
+                    borderRadius: "8px",
+                    border: "none",
+                    backgroundColor: "#7c3aed",
+                    color: "white",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -262,82 +396,173 @@ function App() {
               boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
             }}
           >
-            <div style={{
-                display:'flex',
-                flexDirection:'column',
-                gap:'20px'
-            }}>
-                <h2 className={`${isWinner ? 'clr-grn' : 'clr-red'}`}>{isWinner ? "🎉 You Won!" : "💀 Game Over"}</h2>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "20px",
+              }}
+            >
+              <h2 className={`${isWinner ? "clr-grn" : "clr-red"}`}>
+                {isWinner ? "🎉 You Won!" : "💀 Game Over"}
+              </h2>
 
-                            <p>
-                            {isWinner
-                                ? `Great job, ${playerName}! You guessed it!`
-                                : isTimeUp
-                                ? `Time's up! The word was "${word}"`
-                                : `The word was "${word}"`}
-                            </p>
+              <p>
+                {isWinner
+                  ? `Great job, ${playerName}! You guessed it!`
+                  : isTimeUp
+                  ? `Time's up! The word was "${word}"`
+                  : `The word was "${word}"`}
+              </p>
 
-                            <p style={{ fontWeight: "bold" }}>
-                            Final Score: {score}
-                            </p>
-                            
-                            <div style={{
-                                display:'flex',
-                                gap: '20px'
-                            }}>
-                                <button
-                            onClick={() => {
-                                setGameWord(getWord())
-                                setGuessedLetters([])
-                                setTimeLeft(60)
-                                previousCorrectCount.current = 0
-                                previousIncorrectCount.current = 0
-                                winBonusAdded.current = false
-                            }}
-                            style={{
-                                
-                                padding: "0.7rem 1.2rem",
-                                fontSize: "1rem",
-                                cursor: "pointer",
-                                borderRadius: "8px",
-                                border: "none",
-                                backgroundColor: "#7c3aed",
-                                color: "white",
-                                fontWeight: "bold",
-                            }}
-                            >
-                            Play Again
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setIsStarted(false)
-                                    setPlayerName("") 
-                                    setGuessedLetters([])
-                                    setTimeLeft(60)
-                                    previousCorrectCount.current = 0
-                                    previousIncorrectCount.current = 0
-                                    winBonusAdded.current = false
-                                    scoreSaved.current = false
-                                }}
-                            style={{
-                                
-                                
-                                padding: "0.7rem 1.2rem",
-                                fontSize: "1rem",
-                                cursor: "pointer",
-                                borderRadius: "8px",
-                                border: "none",
-                                backgroundColor: "#ef4444",
-                                color: "white",
-                                fontWeight: "bold",
-                            }}
-                            >
-                            Exit to Start
-                            </button>
-                            </div>
+              <p style={{ fontWeight: "bold" }}>Final Score: {score}</p>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "20px",
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                }}
+              >
+                <button
+                  onClick={() => {
+                    resetGameValues()
+                  }}
+                  style={{
+                    padding: "0.7rem 1.2rem",
+                    fontSize: "1rem",
+                    cursor: "pointer",
+                    borderRadius: "8px",
+                    border: "none",
+                    backgroundColor: "#7c3aed",
+                    color: "white",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Play Again
+                </button>
+
+                <button
+                  onClick={() => setShowLeaderboard(true)}
+                  style={{
+                    padding: "0.7rem 1.2rem",
+                    fontSize: "1rem",
+                    cursor: "pointer",
+                    borderRadius: "8px",
+                    border: "none",
+                    backgroundColor: "#334155",
+                    color: "white",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Leaderboard
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsStarted(false)
+                    setPlayerName("")
+                    setScore(0)
+                    setGuessedLetters([])
+                    setTimeLeft(60)
+                    previousCorrectCount.current = 0
+                    previousIncorrectCount.current = 0
+                    winBonusAdded.current = false
+                    scoreSaved.current = false
+                    setGameWord(getWord())
+                  }}
+                  style={{
+                    padding: "0.7rem 1.2rem",
+                    fontSize: "1rem",
+                    cursor: "pointer",
+                    borderRadius: "8px",
+                    border: "none",
+                    backgroundColor: "#ef4444",
+                    color: "white",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Exit to Start
+                </button>
+              </div>
             </div>
-            
-            
+          </div>
+        </div>
+      )}
+
+      {showLeaderboard && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.65)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 2000,
+          }}
+        >
+          <div
+            style={{
+              background: "#1e293b",
+              color: "#e2e8f0",
+              padding: "2rem",
+              borderRadius: "14px",
+              width: "90%",
+              maxWidth: "420px",
+              border: "2px solid #7c3aed",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+            }}
+          >
+            <h2 style={{ marginBottom: "1rem", color: "#8f6fc8", textAlign: "center" }}>
+              🏆 Leaderboard
+            </h2>
+
+            {leaderboard.length === 0 ? (
+              <p style={{ textAlign: "center" }}>No scores yet</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {leaderboard.map((entry, index) => (
+                  <div
+                    key={`${entry.name}-${entry.score}-${index}`}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      backgroundColor: "#0f172a",
+                      padding: "0.8rem 1rem",
+                      borderRadius: "10px",
+                    }}
+                  >
+                    <span>
+                      {index + 1}. {entry.name}
+                    </span>
+                    <span style={{ fontWeight: "bold", color: "#22c55e" }}>
+                      {entry.score}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginTop: "1.5rem", textAlign: "center" }}>
+              <button
+                onClick={() => setShowLeaderboard(false)}
+                style={{
+                  padding: "0.7rem 1.2rem",
+                  fontSize: "1rem",
+                  cursor: "pointer",
+                  borderRadius: "8px",
+                  border: "none",
+                  backgroundColor: "#7c3aed",
+                  color: "white",
+                  fontWeight: "bold",
+                }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -345,6 +570,7 @@ function App() {
       <div
         style={{
           width: "100%",
+          maxWidth: "900px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -357,6 +583,22 @@ function App() {
         <div>Player: {playerName}</div>
         <div>Score: {score}</div>
         <div>Time Left: {timeLeft}s</div>
+
+        <button
+          onClick={() => setShowLeaderboard(true)}
+          style={{
+            padding: "0.5rem 1rem",
+            fontSize: "0.95rem",
+            cursor: "pointer",
+            borderRadius: "8px",
+            border: "none",
+            backgroundColor: "#334155",
+            color: "white",
+            fontWeight: "bold",
+          }}
+        >
+          Leaderboard
+        </button>
       </div>
 
       <div style={{ fontSize: "1.6rem", fontWeight: "bold" }}>
@@ -371,12 +613,10 @@ function App() {
         wordToGuess={word}
       />
 
-      <div style={{ alignSelf: "stretch" }}>
+      <div style={{ alignSelf: "stretch", width: "100%", maxWidth: "900px" }}>
         <Keyboard
           disabled={isWinner || isLoser}
-          activeLetters={guessedLetters.filter(letter =>
-            word.includes(letter)
-          )}
+          activeLetters={guessedLetters.filter(letter => word.includes(letter))}
           inactiveLetters={incorrectLetters}
           addGuessedLetter={addGuessedLetter}
         />
