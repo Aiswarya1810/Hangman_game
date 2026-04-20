@@ -36,7 +36,7 @@ function App() {
 
   const incorrectLetters = guessedLetters.filter(letter => !word.includes(letter))
   const correctLetters = guessedLetters.filter(letter => word.includes(letter))
-
+  const [nameError, setNameError] = useState("")
   const isTimeUp = timeLeft <= 0
   const isLoser = incorrectLetters.length >= 6 || isTimeUp
   const isWinner = word.split("").every(letter => guessedLetters.includes(letter))
@@ -55,22 +55,70 @@ function App() {
     winBonusAdded.current = false
     scoreSaved.current = false
   }
+const startGame = () => {
+  const trimmedName = playerName.trim()
 
-  const saveScoreToLeaderboard = useCallback(() => {
-    if (!playerName.trim() || scoreSaved.current) return
+  if (!trimmedName) {
+    setNameError("Please enter your name")
+    return
+  }
 
-    const existingScores: LeaderboardEntry[] = JSON.parse(
-      localStorage.getItem("hangmanLeaderboard") || "[]"
-    )
+  const nameExists = leaderboard.some(
+    entry => entry.name.toLowerCase() === trimmedName.toLowerCase()
+  )
 
-    const updatedScores = [...existingScores, { name: playerName, score }]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5)
+  if (nameExists) {
+    setNameError("This name is already taken. Please use a different name.")
+    return
+  }
 
-    localStorage.setItem("hangmanLeaderboard", JSON.stringify(updatedScores))
-    setLeaderboard(updatedScores)
-    scoreSaved.current = true
-  }, [playerName, score])
+  setNameError("")
+  setIsStarted(true)
+  setScore(0)
+  resetGameValues()
+}
+
+const saveScoreToLeaderboard = useCallback(() => {
+  if (!playerName.trim() || scoreSaved.current) return
+
+  const existingScores: LeaderboardEntry[] = JSON.parse(
+    localStorage.getItem("hangmanLeaderboard") || "[]"
+  )
+
+  const existingPlayerIndex = existingScores.findIndex(
+    entry => entry.name.toLowerCase() === playerName.trim().toLowerCase()
+  )
+
+  let updatedScores: LeaderboardEntry[]
+
+  if (existingPlayerIndex !== -1) {
+    updatedScores = [...existingScores]
+
+    // keep only the best score for that player
+    if (score > updatedScores[existingPlayerIndex].score) {
+      updatedScores[existingPlayerIndex] = {
+        name: playerName.trim(),
+        score,
+      }
+    }
+  } else {
+    updatedScores = [
+      ...existingScores,
+      {
+        name: playerName.trim(),
+        score,
+      },
+    ]
+  }
+
+  updatedScores = updatedScores
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+
+  localStorage.setItem("hangmanLeaderboard", JSON.stringify(updatedScores))
+  setLeaderboard(updatedScores)
+  scoreSaved.current = true
+}, [playerName, score])
 
   useEffect(() => {
     const savedScores = JSON.parse(localStorage.getItem("hangmanLeaderboard") || "[]")
@@ -119,10 +167,14 @@ function App() {
   }, [isWinner])
 
   useEffect(() => {
-    if ((isWinner || isLoser) && !scoreSaved.current) {
+  if ((isWinner || isLoser) && !scoreSaved.current) {
+    const timer = setTimeout(() => {
       saveScoreToLeaderboard()
-    }
-  }, [isWinner, isLoser, saveScoreToLeaderboard])
+    }, 100)
+
+    return () => clearTimeout(timer)
+  }
+}, [isWinner, isLoser, score, saveScoreToLeaderboard])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -199,32 +251,44 @@ function App() {
           🎮 Hangman Game
         </h1>
 
-        <input
-          type="text"
-          placeholder="Enter your name"
-          value={playerName}
-          onChange={(e) => setPlayerName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && playerName.trim() !== "") {
-              setIsStarted(true)
-              setScore(0)
-              resetGameValues()
-            }
-          }}
-          style={{
-            padding: "1rem 1.2rem",
-            borderRadius: "14px",
-            border: "2px solid #7c3aed",
-            outline: "none",
-            fontSize: "1.2rem",
-            width: "380px",
-            maxWidth: "90%",
-            backgroundColor: "#1e293b",
-            color: "#e2e8f0",
-            boxShadow: "0 0 15px rgba(124, 58, 237, 0.25)",
-            transition: "0.3s ease",
-          }}
-        />
+      <input
+  type="text"
+  placeholder="Enter your name"
+  value={playerName}
+  onChange={(e) => {
+    setPlayerName(e.target.value)
+    setNameError("")
+  }}
+  onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      startGame()
+    }
+  }}
+  style={{
+    padding: "1rem 1.2rem",
+    borderRadius: "14px",
+    border: "2px solid #7c3aed",
+    outline: "none",
+    fontSize: "1.2rem",
+    width: "380px",
+    maxWidth: "90%",
+    backgroundColor: "#1e293b",
+    color: "#e2e8f0",
+    boxShadow: "0 0 15px rgba(124, 58, 237, 0.25)",
+    transition: "0.3s ease",
+  }}
+/>
+{nameError && (
+  <div
+    style={{
+      color: "#ef4444",
+      fontSize: "0.95rem",
+      marginTop: "-1rem",
+    }}
+  >
+    {nameError}
+  </div>
+)}
 
         <div
           style={{
@@ -235,13 +299,7 @@ function App() {
           }}
         >
           <button
-            onClick={() => {
-              if (playerName.trim() !== "") {
-                setIsStarted(true)
-                setScore(0)
-                resetGameValues()
-              }
-            }}
+            onClick={startGame}
             style={{
               padding: "0.9rem 1.8rem",
               fontSize: "1.1rem",
@@ -571,6 +629,7 @@ function App() {
         style={{
           width: "100%",
           maxWidth: "900px",
+          margin: "0 auto",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -613,7 +672,7 @@ function App() {
         wordToGuess={word}
       />
 
-      <div style={{ alignSelf: "stretch", width: "100%", maxWidth: "900px" }}>
+      <div style={{ alignSelf: "stretch", width: "100%", maxWidth: "900px",  margin: "0 auto",justifyContent: "center", }}>
         <Keyboard
           disabled={isWinner || isLoser}
           activeLetters={guessedLetters.filter(letter => word.includes(letter))}
