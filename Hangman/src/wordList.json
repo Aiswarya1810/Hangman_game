@@ -1,5 +1,5 @@
 {
-  "Fruits": ["apple", "banana", "mango", "orange", "grapes"],
+  "Fruits": ["apple", "banana", "mango", "orange", "grapes", "watermelon"],
   "Vegetables": ["carrot", "potato", "onion", "cabbage", "spinach"],
   "Animals": ["tiger", "rabbit", "elephant", "monkey", "zebra"]
 }
