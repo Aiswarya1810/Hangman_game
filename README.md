@@ -1,5 +1,7 @@
 # 🎮 Hangman Game
 
+🌐 Live Demo: https://hangman-game-six-iota.vercel.app/
+
 A modern Hangman game built using React, TypeScript, and Vite with a stylish dark UI, timer system, scoring, keyboard controls, and leaderboard support.
 
 ---
